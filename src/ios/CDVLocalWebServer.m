@@ -138,19 +138,20 @@
 
 - (BOOL) checkRequirements
 {
-    NSString* pluginName = @"CDVWKWebViewEngine";
-
+    NSSet* expectedPluginNames = [NSSet setWithArray:@[@"CDVWKWebViewEngine", @"CDVWKWebViewEngineLocalhost"]];
+    
     BOOL hasWkWebView = NSClassFromString(@"WKWebView") != nil;
-    BOOL wkEnginePlugin = [[self.commandDelegate.settings cordovaSettingForKey:@"CordovaWebViewEngine"] isEqualToString:pluginName];
+    NSString* pluginName = [self.commandDelegate.settings cordovaSettingForKey:@"CordovaWebViewEngine"];
+    BOOL wkEnginePlugin =  [expectedPluginNames containsObject:pluginName];
 
     if (!hasWkWebView) {
         NSLog(@"[ERROR] %@: WKWebView class not found in the current runtime version.", [self class]);
     }
-
+    
     if (!wkEnginePlugin) {
         NSLog(@"[ERROR] %@: CordovaWebViewEngine preference must be %@", [self class], pluginName);
     }
-
+    
     return hasWkWebView && wkEnginePlugin;
 }
 
@@ -160,26 +161,26 @@
 }
 
 - (void) addProxyToLocalPath:(NSString*) path forServerBaseUrl:(NSURL*) serverBaseUrl andToken:(NSString*) authToken {
-	
-	GCDWebServerMatchBlock matchBlock = ^GCDWebServerRequest *(NSString* requestMethod, NSURL* requestURL, NSDictionary* requestHeaders, NSString* urlPath, NSDictionary* urlQuery) {
-		
-		if (![urlPath hasPrefix:path]) {
-			return nil;
-		}
-		
-		return [[GCDWebServerDataRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:urlPath query:urlQuery];
-	};
-	
-	GCDWebServerAsyncProcessBlock asyncProcessBlock = ^void (GCDWebServerRequest* request, GCDWebServerCompletionBlock complete) {
-		
-		//check if it is a request from localhost
-		NSString *host = [request.headers objectForKey:@"Host"];
-		if (host==nil || [host hasPrefix:@"localhost"] == NO ) {
-			complete([GCDWebServerErrorResponse responseWithClientError:kGCDWebServerHTTPStatusCode_Forbidden message:@"FORBIDDEN"]);
-			return;
-		}
-		
-		//check if the querystring or the cookie has the token
+    
+    GCDWebServerMatchBlock matchBlock = ^GCDWebServerRequest *(NSString* requestMethod, NSURL* requestURL, NSDictionary* requestHeaders, NSString* urlPath, NSDictionary* urlQuery) {
+        
+        if (![urlPath hasPrefix:path]) {
+            return nil;
+        }
+        
+        return [[GCDWebServerDataRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:urlPath query:urlQuery];
+    };
+    
+    GCDWebServerAsyncProcessBlock asyncProcessBlock = ^void (GCDWebServerRequest* request, GCDWebServerCompletionBlock complete) {
+        
+        //check if it is a request from localhost
+        NSString *host = [request.headers objectForKey:@"Host"];
+        if (host==nil || [host hasPrefix:@"localhost"] == NO ) {
+            complete([GCDWebServerErrorResponse responseWithClientError:kGCDWebServerHTTPStatusCode_Forbidden message:@"FORBIDDEN"]);
+            return;
+        }
+        
+        //check if the querystring or the cookie has the token
 //		BOOL hasToken = (request.URL.query && [request.URL.query containsString:authToken]);
 //		NSString *cookie = [request.headers objectForKey:@"Cookie"];
 //		BOOL hasCookie = (cookie && [cookie containsString:authToken]);
@@ -187,85 +188,84 @@
 //			complete([GCDWebServerErrorResponse responseWithClientError:kGCDWebServerHTTPStatusCode_Forbidden message:@"FORBIDDEN"]);
 //			return;
 //		}
-		
-		NSURLComponents *components = [NSURLComponents componentsWithURL:request.URL resolvingAgainstBaseURL:YES];
-		components.scheme = serverBaseUrl.scheme;
-		components.host = serverBaseUrl.host;
-		components.port = serverBaseUrl.port;
-		
-		components.path = [components.path substringFromIndex:[path length]];
-		components.path = [serverBaseUrl.path stringByAppendingPathComponent:components.path];
-		
-		NSMutableURLRequest* nsurlRequest = [NSMutableURLRequest requestWithURL:[components URL]];
-		nsurlRequest.HTTPMethod = request.method;
-		
-		for (NSString* key in [request.headers allKeys]) {
-			[nsurlRequest addValue:request.headers[key] forHTTPHeaderField:key];
-		}
-		
-		if (request.hasBody) {
-			GCDWebServerDataRequest* dataRequest = (GCDWebServerDataRequest*) request;
-			nsurlRequest.HTTPBody = dataRequest.data;
-		}
-		
-		// respond using GCDWebServerDataResponse
-		
-		if (true) {
-			NSCachedURLResponse* cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:nsurlRequest];
-			if (cachedResponse) {
-				NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) cachedResponse.response;
-				GCDWebServerResponse* gdcResponse = nil;
-				if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
-					gdcResponse = [GCDWebServerDataResponse responseWithData:cachedResponse.data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
-					for (NSString* key in httpResponse.allHeaderFields) {
-						if (![key isEqualToString:@"Content-Encoding"]) {
-							[gdcResponse setValue:httpResponse.allHeaderFields[key] forAdditionalHeader:key];
-						}
-					}
-					gdcResponse.statusCode = httpResponse.statusCode;
-					complete(gdcResponse);
-					return;
-				}
-			}
-		}
-		
-		__block NSURLSessionDataTask* task = [[NSURLSession sharedSession] dataTaskWithRequest:nsurlRequest
-																			 completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-																				 NSLog(@"MY TASK: %@", task);
-																				 NSLog(@"MY RESPONSE: %@", response);
-																				 NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) response;
-																				 GCDWebServerResponse* gdcResponse = nil;
-																				 if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
-																					 gdcResponse = [GCDWebServerDataResponse responseWithData:data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
-																					 for (NSString* key in httpResponse.allHeaderFields) {
-																						 if (![key isEqualToString:@"Content-Encoding"]) {
-																							 [gdcResponse setValue:httpResponse.allHeaderFields[key] forAdditionalHeader:key];
-																						 }
-																					 }
-																					 gdcResponse.statusCode = httpResponse.statusCode;
-																				 }
-																				 else {
-																					 gdcResponse = [GCDWebServerResponse responseWithStatusCode:httpResponse.statusCode];
-																				 }
-																				 
-																				 complete(gdcResponse);
-																				 
-																			 }];
-		
-		[task resume];
-	};
-	
-	[self.server addHandlerWithMatchBlock:matchBlock asyncProcessBlock:asyncProcessBlock];
+        
+        NSURLComponents *components = [NSURLComponents componentsWithURL:request.URL resolvingAgainstBaseURL:YES];
+        components.scheme = serverBaseUrl.scheme;
+        components.host = serverBaseUrl.host;
+        components.port = serverBaseUrl.port;
+        
+        components.path = [components.path substringFromIndex:[path length]];
+        components.path = [serverBaseUrl.path stringByAppendingPathComponent:components.path];
+        
+        NSMutableURLRequest* nsurlRequest = [NSMutableURLRequest requestWithURL:[components URL]];
+        nsurlRequest.HTTPMethod = request.method;
+        
+        for (NSString* key in [request.headers allKeys]) {
+            [nsurlRequest addValue:request.headers[key] forHTTPHeaderField:key];
+        }
+        
+        if (request.hasBody) {
+            GCDWebServerDataRequest* dataRequest = (GCDWebServerDataRequest*) request;
+            nsurlRequest.HTTPBody = dataRequest.data;
+        }
+        
+        // respond using GCDWebServerDataResponse
+        
+        //		NSCachedURLResponse* cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:nsurlRequest];
+        //		if (false && cachedResponse) {
+        //			NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) cachedResponse.response;
+        //			GCDWebServerResponse* gdcResponse = nil;
+        //			if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
+        //				gdcResponse = [GCDWebServerDataResponse responseWithData:cachedResponse.data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
+        //				for (NSString* key in httpResponse.allHeaderFields) {
+        //					if (![key isEqualToString:@"Content-Encoding"]) {
+        //						[gdcResponse setValue:httpResponse.allHeaderFields[key] forAdditionalHeader:key];
+        //					}
+        //				}
+        //				gdcResponse.statusCode = httpResponse.statusCode;
+        //				complete(gdcResponse);
+        //				return;
+        //			}
+        //		}
+        
+        __block NSURLSessionDataTask* task = [[NSURLSession sharedSession] dataTaskWithRequest:nsurlRequest
+                                                                             completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+                                                                                 NSLog(@"MY TASK: %@", task);
+                                                                                 NSLog(@"MY RESPONSE: %@", response);
+                                                                                 NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) response;
+                                                                                 GCDWebServerResponse* gdcResponse = nil;
+                                                                                 if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
+                                                                                     gdcResponse = [GCDWebServerDataResponse responseWithData:data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
+                                                                                     for (NSString* key in httpResponse.allHeaderFields) {
+                                                                                         if (![key isEqualToString:@"Content-Encoding"]) {
+                                                                                             [gdcResponse setValue:httpResponse.allHeaderFields[key] forAdditionalHeader:key];
+                                                                                         }
+                                                                                     }
+                                                                                     gdcResponse.statusCode = httpResponse.statusCode;
+                                                                                 }
+                                                                                 else {
+                                                                                     gdcResponse = [GCDWebServerResponse responseWithStatusCode:httpResponse.statusCode];
+                                                                                 }
+                                                                                 
+                                                                                 complete(gdcResponse);
+                                                                                 
+                                                                             }];
+        
+        [task resume];
+    };
+    
+    [self.server addHandlerWithMatchBlock:matchBlock asyncProcessBlock:asyncProcessBlock];
 }
 
 -  (void) addFileSystemHandlers:(NSString*)authToken
 {
-	// TODO: set in javascript - or config.xml?
-	//////////////////////////
-	[self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"http://brix.wearemothership.com:9000/api/"] andToken:authToken];
-	// //////////////////////
-	
-	
+    // TODO: set in javascript - or config.xml?
+    //////////////////////////
+    //[self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"http://brix.wearemothership.com:9000/api/"] andToken:authToken];
+    [self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"http://vpop-pro.com:9000/api/"] andToken:authToken];
+    // //////////////////////
+    
+    
     [self addLocalFileSystemHandler:authToken];
     [self addAssetLibraryFileSystemHandler:authToken];
 
@@ -282,18 +282,18 @@
 
             if ([[urlToTransform scheme] isEqualToString:ASSETS_LIBRARY_PATH]) {
                 transformedUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@/%@%@",
-                        localhostUrlString,
-                        ASSETS_LIBRARY_PATH,
-                        urlToTransform.host,
-                        urlToTransform.path
-                        ]];
-
+                                                       localhostUrlString,
+                                                       ASSETS_LIBRARY_PATH,
+                                                       urlToTransform.host,
+                                                       urlToTransform.path
+                                                       ]];
+                
             } else if ([[urlToTransform scheme] isEqualToString:@"file"]) {
                 transformedUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@%@",
-                       localhostUrlString,
-                        LOCAL_FILESYSTEM_PATH,
-                       urlToTransform.path
-                        ]];
+                                                       localhostUrlString,
+                                                       LOCAL_FILESYSTEM_PATH,
+                                                       urlToTransform.path
+                                                       ]];
             }
 
             return transformedUrl;

@@ -98,15 +98,7 @@
 
     } else {
         if (requirementsOK) {
-            NSString* error = [NSString stringWithFormat:@"WARNING: CordovaLocalWebServer: <content> tag src is not http://localhost[:port] (is %@).", vc.startPage];
-            NSLog(@"%@", error);
-
-            [self addErrorSystemHandler:authToken];
-            
-            // handlers must be added before server starts
-            [self.server startWithPort:port bonjourName:nil];
-
-            vc.startPage = [self createErrorUrl:error authToken:authToken];
+            // just ignore...
         } else {
             GWS_LOG_ERROR(@"%@ stopped, failed requirements check.", [self.server class]);
         }

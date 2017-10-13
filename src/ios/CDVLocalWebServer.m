@@ -98,7 +98,7 @@
 
     } else {
         if (requirementsOK) {
-            // just ignore...
+			// just ignore...
         } else {
             GWS_LOG_ERROR(@"%@ stopped, failed requirements check.", [self.server class]);
         }
@@ -227,7 +227,13 @@
                                                                                  NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) response;
                                                                                  GCDWebServerResponse* gdcResponse = nil;
                                                                                  if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
-                                                                                     gdcResponse = [GCDWebServerDataResponse responseWithData:data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
+																					 if (data) {
+																						 gdcResponse = [GCDWebServerDataResponse responseWithData:data contentType:httpResponse.allHeaderFields[@"Content-Type"]];
+																					 }
+																					 else {
+																						 // no data
+																						 gdcResponse = [GCDWebServerResponse responseWithStatusCode:httpResponse.statusCode];
+																					 }
                                                                                      for (NSString* key in httpResponse.allHeaderFields) {
                                                                                          if (![key isEqualToString:@"Content-Encoding"]) {
                                                                                              [gdcResponse setValue:httpResponse.allHeaderFields[key] forAdditionalHeader:key];

@@ -1,7 +1,7 @@
 {
 	"name": "cordova-local-webserver",
-	"version": "1.1.6",
-	"description": "The official Apache Cordova WKWebView Engine Plugin",
+	"version": "1.0.0",
+	"description": "Cordova local webserver",
 	"main": "index.js",
 	"repository": {
 	  "type": "git",

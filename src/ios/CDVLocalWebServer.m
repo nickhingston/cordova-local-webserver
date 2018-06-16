@@ -260,7 +260,7 @@
     // TODO: set in javascript - or config.xml?
     //////////////////////////
     //[self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"http://brix.wearemothership.com:9000/api/"] andToken:authToken];
-    [self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"http://vpop-pro.com:9000/api/"] andToken:authToken];
+    [self addProxyToLocalPath:@"/api/" forServerBaseUrl:[NSURL URLWithString:@"https://vpop-pro.com/api/"] andToken:authToken];
     // //////////////////////
     
     

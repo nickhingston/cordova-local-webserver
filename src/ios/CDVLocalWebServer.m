@@ -84,7 +84,7 @@
 	[GCDWebServer setLogLevel:kGCDWebServerLoggingLevel_Error];
 	
 	// increase the cache size massively!
-	int cacheSizeMemory = 64 * 1024 * 1024; // 8MB
+	int cacheSizeMemory = 64 * 1024 * 1024; // 64MB
 	int cacheSizeDisk = 1024 * 1024 * 1024; // 1GB
 	NSURLCache* sharedCache = [[NSURLCache alloc] initWithMemoryCapacity:cacheSizeMemory diskCapacity:cacheSizeDisk diskPath:@"nsurlcache"];
 	[NSURLCache setSharedURLCache:sharedCache];
@@ -212,8 +212,13 @@
 			NSCachedURLResponse* cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:nsurlRequest];
 			if (cachedResponse) {
 				NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) cachedResponse.response;
-				NSString* etag = httpResponse.allHeaderFields[@"Etag"];
-				[nsurlRequest addValue:etag forHTTPHeaderField:@"If-None-Match"];
+				// check cached data is ok?!
+				if ([cachedResponse.data length] && [NSJSONSerialization JSONObjectWithData:cachedResponse.data options:0 error:nil]) {
+					NSString* etag = httpResponse.allHeaderFields[@"Etag"];
+					if ([etag length]) {
+						[nsurlRequest addValue:etag forHTTPHeaderField:@"If-None-Match"];
+					}
+				}
 			}
 		}
 		

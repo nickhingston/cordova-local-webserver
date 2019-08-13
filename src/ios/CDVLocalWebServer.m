@@ -232,8 +232,8 @@
 		
         __block NSURLSessionDataTask* task = [[NSURLSession sharedSession] dataTaskWithRequest:nsurlRequest
                                                                              completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-                                                                                 NSLog(@"MY TASK: %@", task);
-                                                                                 NSLog(@"MY RESPONSE: %@", response);
+                                                                                //  NSLog(@"MY TASK: %@", task);
+                                                                                //  NSLog(@"MY RESPONSE: %@", response);
                                                                                  NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*) response;
                                                                                  GCDWebServerResponse* gdcResponse = nil;
                                                                                  if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 400) {
